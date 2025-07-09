@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ENV/
+env/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.vscode/
+Thumbs.db
+build/
+dist/
+*.egg-info/
+.eggs/

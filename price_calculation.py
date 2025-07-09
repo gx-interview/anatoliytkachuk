@@ -150,3 +150,20 @@ class PriceCalculator:
         self.df['Total'] = np.select(
             conditions, results, default=np.nan
         )
+
+
+if __name__ == '__main__':
+
+    data_handler: DataHandler = DataHandler(
+        data_source_type=DataSourceType.FILE,
+        path_import='source.csv',
+        path_export='result.csv',)
+
+    # Load csv data from source.csv file
+    df_to_calculate: pd.DataFrame = data_handler.retrieve_df()
+
+    price_calculator: PriceCalculator = PriceCalculator(df=df_to_calculate)
+    df_total:pd.DataFrame = price_calculator.calculate()
+
+    # Save the result to the new file result.csv
+    data_handler.export_df(df=df_total)

@@ -225,6 +225,24 @@ class TestPriceCalculator(unittest.TestCase):
         expected_total = pd.Series([1000.0, 750.0, 400.0, 112.5, 2400.0], name='Total')
         pd.testing.assert_series_equal(calculator.df['Total'], expected_total, check_dtype=False)
 
+    def test_price_calculator_round_total(self):
+        """Tests the rounding of the 'Total' column and validates the type checking for precision."""
+        df = pd.DataFrame({'Total': [123.456, 78.912, 99.999]})
+        calculator = PriceCalculator(df)
+
+        calculator._round_total(round_precision=2)
+        expected_rounded = pd.Series([123.46, 78.91, 100.00], name='Total')
+        pd.testing.assert_series_equal(calculator.df['Total'], expected_rounded)
+
+        calculator.df['Total'] = pd.Series([123.456, 78.912, 99.999]) # Reset data
+
+        calculator._round_total(round_precision=0)
+        expected_rounded_zero = pd.Series([123.0, 79.0, 100.0], name='Total')
+        pd.testing.assert_series_equal(calculator.df['Total'], expected_rounded_zero)
+
+        with self.assertRaisesRegex(TypeError, "Rounding precision must be an integer"):
+            calculator._round_total(round_precision=2.5)
+
 
 if __name__ == '__main__':
     # Allows the test file to be run directly from the command line.

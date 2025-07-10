@@ -1,3 +1,8 @@
+"""
+This code follows the Single Responsibility and Open/Closed principles;
+each class has its own purpose, and each method perform a single, discrete operation
+"""
+
 import enum
 import os
 
@@ -74,18 +79,19 @@ class DataHandler:
 
 class PriceCalculator:
     """
-    Calculate total prices in validated dataframe.
+    Calculates (using vectors without slow apply method as a bad practice) and rounds total prices in validated dataframe.
     Public method calculate() includes private methods with steps of serialization, validation and calculation.
     """
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df: pd.DataFrame = df
 
-    def calculate(self) -> pd.DataFrame:
+    def calculate(self, round_precision: int = 2) -> pd.DataFrame:
         self._serialize_data()
         self._validate_data()
         self._update_timezone()
         self._calculate_total()
+        self._round_total(round_precision=round_precision)
         return self.df
 
     def _serialize_data(self) -> None:
@@ -151,6 +157,12 @@ class PriceCalculator:
             conditions, results, default=np.nan
         )
 
+    def _round_total(self, round_precision: int) -> None:
+        if not isinstance(round_precision, int):
+            raise TypeError(
+                f"Rounding precision must be an integer, but got {type(round_precision).__name__}."
+            )
+        self.df['Total'] = self.df['Total'].round(round_precision)
 
 if __name__ == '__main__':
 

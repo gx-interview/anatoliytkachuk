@@ -4,13 +4,17 @@ each class has its own purpose, and each method perform a single, discrete opera
 """
 
 import enum
+import logging
 import os
+import sys
 
 import numpy as np
 import pandas as pd
 
 from pandas.core.dtypes.common import is_string_dtype, is_numeric_dtype
 
+
+logger = logging.getLogger(__name__)
 
 
 class DataSourceType(enum.Enum):
@@ -33,8 +37,12 @@ class DataHandler:
         self.data_source_type: DataSourceType = data_source_type
         self.path_import: str = path_import
         self.path_export: str = path_export
+        logger.info(f"DataHandler initialized for source type: {data_source_type.value}")
+        logger.info(f"Import path: {path_import}, Export path: {path_export}")
+
 
     def retrieve_df(self) -> pd.DataFrame:
+        logger.info(f"Attempting to retrieve dataframe from {self.data_source_type.value}")
         if self.data_source_type == DataSourceType.FILE:
             return self._read_file()
         elif self.data_source_type == DataSourceType.DATABASE:
@@ -44,12 +52,16 @@ class DataHandler:
         raise NotImplementedError('Such a data source is not implemented')
 
     def _read_file(self) -> pd.DataFrame:
+        logger.info(f"Reading file from: {self.path_import}")
         file_size_gb = os.path.getsize(self.path_import) / (1024*1024*1024)
         if file_size_gb > self.MAX_FILE_SIZE_GB:
             raise ValueError(
                 f"File is too large. Maximum allowed size is {self.MAX_FILE_SIZE_GB}. Use database instead."
             )
-        return pd.read_csv(self.path_import)
+
+        df = pd.read_csv(self.path_import)
+        logger.info(f"Successfully read {len(df)} rows from {self.path_import}")
+        return df
 
     def _query_database(self) -> pd.DataFrame:
         raise NotImplementedError('Database query is not implemented')
@@ -58,6 +70,7 @@ class DataHandler:
         raise NotImplementedError('API fetch is not implemented')
 
     def export_df(self, df: pd.DataFrame) -> None:
+        logger.info(f"Attempting to export dataframe to {self.data_source_type.value}")
         if self.data_source_type == DataSourceType.FILE:
             self._export_to_file(df)
         elif self.data_source_type == DataSourceType.DATABASE:
@@ -68,7 +81,9 @@ class DataHandler:
             raise NotImplementedError('Such a data source is not implemented')
 
     def _export_to_file(self, df: pd.DataFrame) -> None:
+        logger.info(f"Exporting dataframe to file: {self.path_export}")
         df.to_csv(self.path_export, index=False)
+        logger.info(f"Successfully exported {len(df)} rows to {self.path_export}")
 
     def _save_to_database(self, df: pd.DataFrame) -> None:
         raise NotImplementedError('Database save is not implemented')
@@ -85,19 +100,24 @@ class PriceCalculator:
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df: pd.DataFrame = df
+        logger.info("PriceCalculator initialized.")
 
     def calculate(self, round_precision: int = 2) -> pd.DataFrame:
+        logger.info("Starting price calculation process.")
         self._serialize_data()
         self._validate_data()
         self._update_timezone()
         self._calculate_total()
         self._round_total(round_precision=round_precision)
+        logger.info("Price calculation process completed successfully.")
         return self.df
 
     def _serialize_data(self) -> None:
+        logger.info("Serializing 'Datetime' column to datetime objects.")
         self.df['Datetime'] = pd.to_datetime(self.df['Datetime'])
 
     def _validate_data(self) -> None:
+        logger.info("Validating data.")
         # Validation for missing columns required for the task in the dataframe
         list_of_required_columns = ['Name', 'Datetime', 'Amount', 'Price', 'Purity']
         missing = [col for col in list_of_required_columns if col not in self.df.columns]
@@ -116,11 +136,13 @@ class PriceCalculator:
         duplicates_count = self.df[self.df['Name'] == 'ProductA'].duplicated(subset=['Datetime']).sum()
         if duplicates_count > 0:
              raise ValueError('Product A has duplicate timestamps')
+        logger.info("Data validation passed.")
 
     def _update_timezone(self) -> None:
         """
         Convert values in datetime column from timezone UTC to UTC+6
         """
+        logger.info("Updating timezone to 'Etc/GMT-6'.")
         if self.df['Datetime'].dt.tz is not None:
             self.df['Datetime'] = self.df['Datetime'].dt.tz_convert('UTC').dt.tz_convert('Etc/GMT-6')
         else:
@@ -136,6 +158,7 @@ class PriceCalculator:
         Implementation via np.select (more efficient)
         Alternative implementation: LEFT JOIN on datetime and calculating difference between price columns
         """
+        logger.info("Calculating 'Total' column.")
         conditions: list = [
             (self.df['Name'] == 'ProductA') & (self.df['Purity'] == 'Pure'),
             (self.df['Name'] == 'ProductA') & (self.df['Purity'] == 'Impure'),
@@ -156,15 +179,25 @@ class PriceCalculator:
         self.df['Total'] = np.select(
             conditions, results, default=np.nan
         )
+        logger.info("Calculation of 'Total' column complete.")
 
     def _round_total(self, round_precision: int) -> None:
+        logger.info(f"Rounding 'Total' column to {round_precision} decimal places.")
         if not isinstance(round_precision, int):
             raise TypeError(
                 f"Rounding precision must be an integer, but got {type(round_precision).__name__}."
             )
         self.df['Total'] = self.df['Total'].round(round_precision)
 
+
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout,
+    )
+
+    logger.info("Script started.")
 
     data_handler: DataHandler = DataHandler(
         data_source_type=DataSourceType.FILE,
@@ -179,3 +212,5 @@ if __name__ == '__main__':
 
     # Save the result to the new file result.csv
     data_handler.export_df(df=df_total)
+
+    logger.info("Script finished.")

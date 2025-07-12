@@ -7,6 +7,7 @@ import enum
 import logging
 import os
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -158,7 +159,8 @@ class PriceCalculator:
         Implementation via np.select (more efficient)
         Alternative implementation: LEFT JOIN on datetime and calculating difference between price columns
         """
-        logger.info("Calculating 'Total' column.")
+        logger.info(f"Calculating 'Total' column.")
+        start_time = time.perf_counter()
         conditions: list = [
             (self.df['Name'] == 'ProductA') & (self.df['Purity'] == 'Pure'),
             (self.df['Name'] == 'ProductA') & (self.df['Purity'] == 'Impure'),
@@ -179,7 +181,9 @@ class PriceCalculator:
         self.df['Total'] = np.select(
             conditions, results, default=np.nan
         )
-        logger.info("Calculation of 'Total' column complete.")
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        logger.info(f"Calculation of 'Total' column complete in {np.round(total_time*1000, decimals=1)} milliseconds.")
 
     def _round_total(self, round_precision: int) -> None:
         logger.info(f"Rounding 'Total' column to {round_precision} decimal places.")
